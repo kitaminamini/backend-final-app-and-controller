@@ -1,0 +1,13 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: web-controller
+spec:
+  selector:
+    app: web-controller
+  type: NodePort
+  ports:
+  - protocol: TCP
+    port: 8000
+    nodePort: 30008
+    targetPort: 8000

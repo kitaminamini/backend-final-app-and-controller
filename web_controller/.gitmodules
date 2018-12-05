@@ -1,0 +1,3 @@
+[submodule "module"]
+    path = module
+    url = git@bitbucket.org:backend_p2/shared_module.git

@@ -1,0 +1,8 @@
+pika
+pymongo
+minio
+tornado
+python-socketio
+socketIO-client
+aio-pika
+asyncio

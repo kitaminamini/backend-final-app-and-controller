@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-controller
+  labels:
+    app: web-controller
+spec:
+  # replicas: 3
+  selector:
+    matchLabels:
+      app: web-controller
+  template:
+    metadata:
+      labels:
+        app: web-controller
+    spec:
+      containers:
+      - name: web-controller
+        image: k8s-p2-web-controller:v1
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8000
+        env:
+          - name: RABBITMQ
+            value: rabbitmq
+          - name: MINIO
+            value: minio
+          - name: MINIO_ACCESS_KEY
+            valueFrom:
+              configMapKeyRef:
+                key: MINIO_ACCESS_KEY
+                name: minio-env
+          - name: MINIO_SECRET_KEY
+            valueFrom:
+              configMapKeyRef:
+                key: MINIO_SECRET_KEY
+                name: minio-env
+          - name: MONGO
+            value: mongo
