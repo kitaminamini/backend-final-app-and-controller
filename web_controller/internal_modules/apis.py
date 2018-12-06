@@ -16,7 +16,7 @@ class Singleton:
     config = get_config()
     mongo = MongoDAO(config["mongo"])
     rabbit = RabbitMQDAO(config["rabbitmq"])
-    minio = MinioDAO(config["minio"])
+
 
 
 # singleton for all
@@ -39,15 +39,21 @@ class ArticleHandler(RequestHandler):
     def get(self):
         self.set_default_headers()
         num = self.get_argument('num', None)
-        topics = self.get_argument('topics', None)
-        rss = self.get_argument('rss', None)
-        if topics!=None and rss!=None:
-
-        elif topics!=None:
-
-        elif rss!=None: 
+        if num == None:
+            self.set_status(400)
 
         else:
+            query = {"$limit": int(num)}
+            db = singleton.mongo.client["results"]
+            col = db["results"]
+            results = col.find(query)
+            ret = []
+            if results is not None:
+                for result in results:
+                    result["_id"] = str(result["_id"])
+                    ret.append(result)
+            self.set_status(200)
+            self.write(json.dumps({"articles": ret}))
 
         self.finish()
 
@@ -73,18 +79,18 @@ class TopicHandler(RequestHandler):
 
     def get(self, topics):
         self.set_default_headers()
-        query = {"$or": [{"topic": t} for t in topics]}
-        col = singleton.mongo.collection
+        topics = self.get_argument('topics', None)
+        query = {"label": {"$in": [for t in topics.split('&')]}}
+        db = singleton.mongo.client["results"]
+        col = db["labels"]
         results = col.find(query)
         ret = []
         if results is not None:
             for result in results:
                 result["_id"] = str(result["_id"])
                 ret.append(result)
-        if len(ret) == 0:
-            self.write("")
-        else:
-            self.write(json.dumps(ret))
+        self.set_status(200)
+        self.write(json.dumps({"articles": ret}))
         self.finish()
 
     def post(self, *args, **kwargs):
@@ -110,29 +116,27 @@ class RssHandler(RequestHandler):
     def check_origin(self, origin):
         return True
 
-    def get(self, rss):
+    def get(self):
         self.set_default_headers()
-        query = {"$or": [{"rss": r} for r in rss]}
-        col = singleton.mongo.collection
+        rss = num = self.get_argument('rss', None)
+        query = {"rss": rss}
+        db = singleton.mongo.client["results"]
+        col = db["rss"]
         results = col.find(query)
         ret = []
         if results is not None:
             for result in results:
                 result["_id"] = str(result["_id"])
                 ret.append(result)
-        # if len(ret) == 0:
-        #     self.write("")
-        # else:
+        self.set_status(200)
         self.write(json.dumps({"articles": ret}))
         self.finish()
 
     async def post(self, rss):
         self.set_default_headers()
-        doc = {"rss": rss}
-        col = singleton.mongo.collection
-        results = col.insert_one(doc)
-
-        rmq1_msg = json.dumps(doc)
+        body = self.request.body
+        json_body = json.loads(body)
+        rss = json_body["rss"]
 
         connection = self.application.settings['amqp_connection']
         channel: aio_pika.Channel = await connection.channel()
@@ -142,7 +146,7 @@ class RssHandler(RequestHandler):
             logger.info("---------declaring queue ---------")
             await channel.declare_queue(singleton.config["rabbitmq"]["rss"])
             logger.info("---------sending msg---------")
-            await exchange.publish(aio_pika.Message(body=bytes(rmq1_msg, 'utf-8')),
+            await exchange.publish(aio_pika.Message(body=bytes(rss, 'utf-8')),
                                    routing_key=singleton.config["rabbitmq"]["rss"])
             logger.info("---------after publish---------")
         except Exception as err:
@@ -151,9 +155,9 @@ class RssHandler(RequestHandler):
         finally:
             await channel.close()
 
-        self.write(rmq1_msg)
-
         self.set_status(200)
+        self.write(rss)
+        
         self.finish()
 
     def options(self, *args, **kwargs):
