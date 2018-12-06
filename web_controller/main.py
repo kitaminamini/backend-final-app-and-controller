@@ -39,12 +39,12 @@ async def status_callback(message: aio_pika.IncomingMessage):
         status = json_body["status"]
         if status != "OK":
             report = {"newData": False}
-            sio.emit(json.dumps(report))
+            sio.emit("new_data", json.dumps(report))
             # report status and msg to frontend
 
         else:
             report = {"newData": True}
-            sio.emit(json.dumps(report))
+            sio.emit("new_data", json.dumps(report))
 
 
 
@@ -74,7 +74,7 @@ async def make_app(config):
             #                                type=aio_pika.ExchangeType.FANOUT)
             queue = await channel.declare_queue(config[queue_name])  # type: aio_pika.Queue
             connected = True
-            logger.info("successfully connect to rabbit mq")
+            logger.info("successfully connectedct to rabbit mq")
         except Exception as err:
             logger.error("Error: {0}".format(err))
             time.sleep(6)
