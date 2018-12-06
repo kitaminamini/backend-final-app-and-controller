@@ -49,98 +49,6 @@ class ArticleHandler(RequestHandler):
 
         else:
 
-        # if not singleton.minio.client.bucket_exists(bucket_name):
-        #     raise HTTPError(404)
-        # try:
-        #     singleton.minio.client.stat_object(bucket_name, object_name)
-        # except FileNotFoundError:
-        #     logger.info("File did not exist in minio, proceeding to do the unpacking process.")
-        #     raise HTTPError(404)
-        # except Exception as err:
-        #     logger.error(str(err))
-        #     raise HTTPError(404)
-        # data = singleton.minio.client.get_object(bucket_name, object_name)
-        # stat = singleton.minio.client.stat_object(bucket_name, object_name)
-        # self.set_header('Content-Disposition', 'attachment; filename={}'.format(object_name))
-        # self.set_header('Content-Transfer-Encoding', 'binary')
-        # self.set_header("Content-Length", stat.size)
-        # for d in data.stream(32*1024):
-        #     self.write(d)
-        self.finish()
-
-    # upload the tar ball to be converted
-    # get bucketname objectname
-    # check if bucketname exists, create if u have to, else proceed next
-    # if above condition filled, check if object is inside
-    # object_name must be .tar.gz
-    async def post(self, bucket_name, object_name):
-        self.set_default_headers()
-        # singleton.minio.client.bucket_exists()
-        logger.debug("bucket_name: {}, object_name: {}".format(bucket_name, object_name))
-        try:
-            exists = singleton.minio.client.bucket_exists(bucket_name)
-            logger.debug("exists: {}".format(exists))
-            if not exists:
-                singleton.minio.client.make_bucket(bucket_name)
-        except Exception as err:
-            logger.error("error: {}".format(err))
-            raise HTTPError(500)
-
-        object_hash = hashlib.md5(self.request.body).hexdigest()
-        object_name = object_hash + "-" + object_name
-        found = False
-        logger.debug("bucket_name: {}, object_name: {}, hash: {}".format(bucket_name, object_name, object_hash))
-        try:
-            singleton.minio.client.stat_object(bucket_name, object_name)
-            found = True
-        except NoSuchKey:
-            logger.info("File did not exist in minio, proceeding to do the unpacking process.")
-        except Exception as err:
-            logger.error("error: " + str(err))
-            raise HTTPError(404)
-        if found:
-            # return the object back from minio
-            self.write(json.dumps({
-                "output_name": "pack-" + object_name
-            }))
-            self.finish()
-            return
-        else:
-            
-        singleton.mongo.collection.insert_one({
-            "bucket_name": bucket_name,
-            "object_name": object_name,
-            "output_name": "pack-" + object_name,
-            "hash": object_hash,
-            "num_txt": 0,
-            "packed": False,
-        })
-        rmq1_msg = json.dumps({
-            "bucket_name": bucket_name,
-            "object_name": object_name,
-            "hash": object_hash
-        })
-
-        connection = self.application.settings['amqp_connection']
-        channel: aio_pika.Channel = await connection.channel()
-        try:
-            exchange: aio_pika.Exchange = await channel.declare_exchange(singleton.config["rabbitmq"]["exchanges"]["rmq1"],
-                                                                         type=aio_pika.ExchangeType.FANOUT)
-            logger.info("---------declaring queue ---------")
-            await channel.declare_queue(singleton.config["rabbitmq"]["rmq1"])
-            logger.info("---------sending msg---------")
-            await exchange.publish(aio_pika.Message(body=bytes(rmq1_msg, 'utf-8')),
-                                   routing_key=singleton.config["rabbitmq"]["rmq1"])
-            logger.info("---------after publish---------")
-        except Exception as err:
-            logger.error("=======ERROR: {}========".format(err))
-            raise HTTPError(500)
-        finally:
-            await channel.close()
-        self.write(json.dumps({
-            "output_name": "pack-"+object_name,
-            "object_name": object_name,
-        }))
         self.finish()
 
 
@@ -212,10 +120,10 @@ class RssHandler(RequestHandler):
             for result in results:
                 result["_id"] = str(result["_id"])
                 ret.append(result)
-        if len(ret) == 0:
-            self.write("")
-        else:
-            self.write(json.dumps(ret))
+        # if len(ret) == 0:
+        #     self.write("")
+        # else:
+        self.write(json.dumps({"articles": ret}))
         self.finish()
 
     async def post(self, rss):
@@ -229,23 +137,21 @@ class RssHandler(RequestHandler):
         connection = self.application.settings['amqp_connection']
         channel: aio_pika.Channel = await connection.channel()
         try:
-            exchange: aio_pika.Exchange = await channel.declare_exchange(singleton.config["rabbitmq"]["exchanges"]["rmq1"],
-                                                                         type=aio_pika.ExchangeType.FANOUT)
+            # exchange: aio_pika.Exchange = await channel.declare_exchange(singleton.config["rabbitmq"]["exchanges"]["rmq1"],
+            #                                                              type=aio_pika.ExchangeType.FANOUT)
             logger.info("---------declaring queue ---------")
-            await channel.declare_queue(singleton.config["rabbitmq"]["rmq1"])
+            await channel.declare_queue(singleton.config["rabbitmq"]["rss"])
             logger.info("---------sending msg---------")
             await exchange.publish(aio_pika.Message(body=bytes(rmq1_msg, 'utf-8')),
-                                   routing_key=singleton.config["rabbitmq"]["rmq1"])
+                                   routing_key=singleton.config["rabbitmq"]["rss"])
             logger.info("---------after publish---------")
         except Exception as err:
             logger.error("=======ERROR: {}========".format(err))
             raise HTTPError(500)
         finally:
             await channel.close()
-        self.write(json.dumps({
-            "output_name": "pack-"+object_name,
-            "object_name": object_name,
-        }))
+
+        self.write(rmq1_msg)
 
         self.set_status(200)
         self.finish()

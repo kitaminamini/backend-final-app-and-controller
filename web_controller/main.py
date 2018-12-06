@@ -111,27 +111,19 @@ def publish(bucket_name, object_name, pdf_name):
 
 
 async def status_callback(message: aio_pika.IncomingMessage):
-    ## json format:
-    # { bucket_name: string
-    # object_name: string
-    # pdf_name: string }
     with message.process():
         body = message.body
         json_body = json.loads(body)
-        bucket_name = json_body["bucket_name"]
-        object_name = json_body["object_name"]
-        pdf_name = json_body["pdf_name"]
-        if object_name.startswith('pack-') and pdf_name == "":
-            if bucket_name + "/" + object_name[5:] in upload_dict.keys():
-                sids = upload_dict[bucket_name + "/" + object_name[5:]]
-                logger.info("Sending packed status")
-                for sid in sids:
-                    logger.info("Sending status to {}".format(sid))
-                    await sio.emit("listen_status", room=sid, data="packed")
-            else:
-                logger.info("no user is listening to status {}".format(bucket_name + "/" + object_name[5:]))
+        status = json_body["status"]
+        if status != "OK":
+            msg = json_body['message']
+            error_rss = json_body["rss"]
+            # report status and msg to frontend
+
         else:
-            await check_is_convert_done(bucket_name, object_name, pdf_name)
+            report = {"newData": True}
+            sio.emit(json.dumps(report))
+
 
 
 _Handler = socketio.get_tornado_handler(sio)
@@ -145,7 +137,7 @@ class SocketHandler(_Handler):
 async def make_app(config):
     logger.info("connecting to rabbit mq")
 
-    queue_name = "rmq3"
+    queue_name = "status"
     connected = False
     start = int(time.time() * 1000.0)
     current = int(time.time() * 1000.0)

@@ -26,22 +26,17 @@ def get_config():
         "mongo": {
             "host": os.environ.get("MONGO", "localhost"),
             "port": int(os.environ.get("MONGO_SERVICE_PORT", "27017")),
-            "database": "db",
-            "collection": "bucket",
+            "database": "results",
+            "collection": "results",
+            # {_id: ObjectId, title: string, rss: string, labels: List[String]}
         },
         "rabbitmq": {
             "host": os.environ.get("RABBITMQ", "localhost"),
             "port": int(os.environ.get("RABBITMQ_SERVICE_PORT", "5672")),
-            "rmq1": "rmq1",
+            "rss": "rss",
             "rmq2": "rmq2",
             "rmq3": "rmq3",
-            "rmq4": "rmq4",
-            "exchanges": {
-                "rmq1": "r1",
-                "rmq2": "r2",
-                "rmq3": "r3",
-                "rmq4": "r4",
-            }
+            "status": "status"
         },
         "minio": {
             "host": os.environ.get("MINIO", "localhost"),
