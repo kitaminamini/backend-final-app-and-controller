@@ -1,0 +1,35 @@
+version: "3"
+
+services:
+  mongo:
+    image: 'mongo:3.6-stretch'
+    restart: on-failure
+    labels:
+      kompose.service.type: nodeport
+    ports:
+      - "27017:27017"
+    volumes:
+      - './data/mongodata:/data/db'
+
+  rabbitmq:
+    image: 'rabbitmq:3-management-alpine'
+    restart: on-failure
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  web_controller:
+    build: './web_controller'
+    restart: on-failure
+    ports:
+      - "9292:8000"
+    environment:
+      - MONGO=mongo
+      - RABBITMQ=rabbitmq
+
+
+  # web_app:
+  #   build: './web_app'
+  #   restart: on-failure
+  #   ports: 
+  #     - "5000:5000"

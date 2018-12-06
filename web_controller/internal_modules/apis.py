@@ -1,11 +1,9 @@
 from tornado.web import *
 from module.utility import *
-from module.miniodao import *
 from module.mongodao import *
 from module.rabbitmqdao import *
 import hashlib
 import json
-from minio.error import *
 import io
 import asyncio
 import aio_pika
@@ -77,10 +75,12 @@ class TopicHandler(RequestHandler):
     def check_origin(self, origin):
         return True
 
-    def get(self, topics):
+    def get(self):
         self.set_default_headers()
         topics = self.get_argument('topics', None)
-        query = {"label": {"$in": [for t in topics.split('&')]}}
+        labels = [t for t in topics.split(',')]
+        logger.info(labels)
+        query = {"label": {"$in": labels}}
         db = singleton.mongo.client["results"]
         col = db["labels"]
         results = col.find(query)
@@ -132,7 +132,7 @@ class RssHandler(RequestHandler):
         self.write(json.dumps({"articles": ret}))
         self.finish()
 
-    async def post(self, rss):
+    async def post(self):
         self.set_default_headers()
         body = self.request.body
         json_body = json.loads(body)
@@ -141,12 +141,10 @@ class RssHandler(RequestHandler):
         connection = self.application.settings['amqp_connection']
         channel: aio_pika.Channel = await connection.channel()
         try:
-            # exchange: aio_pika.Exchange = await channel.declare_exchange(singleton.config["rabbitmq"]["exchanges"]["rmq1"],
-            #                                                              type=aio_pika.ExchangeType.FANOUT)
             logger.info("---------declaring queue ---------")
             await channel.declare_queue(singleton.config["rabbitmq"]["rss"])
             logger.info("---------sending msg---------")
-            await exchange.publish(aio_pika.Message(body=bytes(rss, 'utf-8')),
+            await channel.default_exchange.publish(aio_pika.Message(body=bytes(rss, 'utf-8')),
                                    routing_key=singleton.config["rabbitmq"]["rss"])
             logger.info("---------after publish---------")
         except Exception as err:

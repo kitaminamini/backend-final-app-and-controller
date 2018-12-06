@@ -2,7 +2,6 @@ import tornado.ioloop
 import module.utility
 from internal_modules.apis import *
 import socketio
-from module.miniodao import MinioDAO
 from module.rabbitmqdao import RabbitMQDAO
 from module.mongodao import MongoDAO
 import json
@@ -25,7 +24,6 @@ error_handler.setLevel(logging.ERROR)
 sio = socketio.AsyncServer(async_mode='tornado')
 config = module.utility.get_config()
 rmq = RabbitMQDAO(config["rabbitmq"])
-minio = MinioDAO(config["minio"])
 mongo = MongoDAO(config["mongo"])
 upload_dict = dict()
 user_dict = dict()
