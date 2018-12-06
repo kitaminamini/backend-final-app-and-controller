@@ -79,8 +79,8 @@ class TopicHandler(RequestHandler):
         self.set_default_headers()
         topics = self.get_argument('topics', None)
         labels = [t for t in topics.split(',')]
-        logger.info(labels)
-        query = {"label": {"$in": labels}}
+        query = {"labels": {"$all": labels}}
+        logger.info(query)
         db = singleton.mongo.client["results"]
         col = db["results"]
         results = col.find(query)
