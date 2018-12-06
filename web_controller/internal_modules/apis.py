@@ -41,10 +41,10 @@ class ArticleHandler(RequestHandler):
             self.set_status(400)
 
         else:
-            query = {"$limit": int(num)}
+            # query = {"$limit": int(num)}
             db = singleton.mongo.client["results"]
             col = db["results"]
-            results = col.find(query)
+            results = col.find({}).sort([("_id", -1)]).limit(int(num))
             ret = []
             if results is not None:
                 for result in results:
@@ -82,7 +82,7 @@ class TopicHandler(RequestHandler):
         logger.info(labels)
         query = {"label": {"$in": labels}}
         db = singleton.mongo.client["results"]
-        col = db["labels"]
+        col = db["results"]
         results = col.find(query)
         ret = []
         if results is not None:
@@ -121,7 +121,7 @@ class RssHandler(RequestHandler):
         rss = num = self.get_argument('rss', None)
         query = {"rss": rss}
         db = singleton.mongo.client["results"]
-        col = db["rss"]
+        col = db["results"]
         results = col.find(query)
         ret = []
         if results is not None:
